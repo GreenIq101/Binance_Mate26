@@ -7,9 +7,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "web-build": "expo export:web",
-    "proxy": "node server/binanceProxy.js",
-    "vercel-build": "npm run web-build"
+    "web-build": "expo export --platform web --output-dir dist",
+    "build": "npm run web-build",
+    "proxy": "node server/binanceProxy.js"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",

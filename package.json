@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "web-build": "expo export --platform web --output-dir dist",
     "build": "npm run web-build",
+    "vercel-build": "npm run build",
     "proxy": "node server/binanceProxy.js"
   },
   "dependencies": {

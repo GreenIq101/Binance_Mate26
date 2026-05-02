@@ -11,6 +11,14 @@ const createSignature = (queryString) => {
   return CryptoJS.HmacSHA256(queryString, API_SECRET).toString();
 };
 
+const appendParam = (params, key, value) => {
+  if (Array.isArray(value)) {
+    value.forEach((item) => params.append(key, item));
+  } else if (value !== undefined) {
+    params.append(key, value);
+  }
+};
+
 const endpoints = {
   account: ["account", "openOrders"],
   public: ["ticker/price", "ticker/24hr", "exchangeInfo", "klines", "depth"],
@@ -25,6 +33,15 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing path parameter" });
   }
 
+  if (normalizedPath === "health") {
+    return res.status(200).json({
+      ok: true,
+      proxy: "vercel-binance",
+      hasApiKey: !!API_KEY,
+      hasApiSecret: !!API_SECRET,
+    });
+  }
+
   try {
     const needsSigning = endpoints.account.includes(normalizedPath);
     
@@ -34,7 +51,7 @@ export default async function handler(req, res) {
 
     const queryParams = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
-      if (value !== undefined) queryParams.append(key, value);
+      appendParam(queryParams, key, value);
     });
 
     let url;
@@ -42,7 +59,8 @@ export default async function handler(req, res) {
 
     if (needsSigning) {
       const timestamp = Date.now();
-      const queryStr = queryParams.toString() + `&timestamp=${timestamp}`;
+      queryParams.set("timestamp", timestamp.toString());
+      const queryStr = queryParams.toString();
       const signature = createSignature(queryStr);
       url = `${binanceBase}/api/v3/${normalizedPath}?${queryStr}&signature=${signature}`;
       axiosHeaders["X-MBX-APIKEY"] = API_KEY;
@@ -54,7 +72,13 @@ export default async function handler(req, res) {
     return res.status(200).json(response.data);
   } catch (error) {
     const status = error?.response?.status || 500;
-    const payload = error?.response?.data || { message: error.message };
+    const binancePayload = error?.response?.data;
+    const payload = {
+      error: binancePayload?.msg || binancePayload?.message || error.message || "Binance proxy request failed",
+      status,
+      binanceCode: binancePayload?.code,
+      path: normalizedPath,
+    };
     return res.status(status).json(payload);
   }
 }

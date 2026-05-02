@@ -21,9 +21,17 @@ const normalizeError = (error) => {
     const e = new Error(
       "Cannot connect to API"
     )
-    e.code = "API_UNREACHABLE"
+    e.code = "PROXY_UNREACHABLE"
     throw e
   }
+
+  if (error?.response?.data?.error || error?.response?.data?.message) {
+    const e = new Error(error.response.data.error || error.response.data.message)
+    e.code = error.response.data.binanceCode || error.response.status
+    e.status = error.response.status
+    throw e
+  }
+
   throw error
 }
 

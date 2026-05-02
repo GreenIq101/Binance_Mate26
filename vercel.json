@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "outputDirectory": "dist",
+  "buildCommand": "echo 'Static export - no build needed'",
+  "devCommand": "echo 'Static export'",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}

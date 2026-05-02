@@ -182,6 +182,18 @@ const computeTradeClose = (trade, currentPrice) => {
   }
 }
 
+// Retry logic for API calls
+const getTickerWithRetry = async (symbol, retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await apiClient.getTicker(symbol)
+    } catch (error) {
+      if (i === retries - 1) throw error
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
+    }
+  }
+}
+
 const FallingPairTag = ({ item, onFinish }) => {
   const progress = useRef(new Animated.Value(0)).current
 
@@ -240,14 +252,17 @@ const OpportunityScannerScreen = () => {
   const [errorMessage, setErrorMessage] = useState("")
   const [fallingPairs, setFallingPairs] = useState([])
   const [isEvaluatingTrades, setIsEvaluatingTrades] = useState(false)
+  const [lastAlertHash, setLastAlertHash] = useState({}) // Prevent duplicate alerts
 
   useEffect(() => {
     loadPairs()
     refreshTradesAndEvaluate()
 
+    // Monitor every 5 seconds for target/stop hits
     const interval = setInterval(() => {
       refreshTradesAndEvaluate()
-    }, 30000)
+      monitorOpenTrades()
+    }, 5000)
 
     return () => clearInterval(interval)
   }, [])
@@ -334,6 +349,110 @@ const OpportunityScannerScreen = () => {
     setTrades(parsed)
   }
 
+  // Monitor open trades for target/stop hits in real-time
+  const monitorOpenTrades = async () => {
+    const user = auth.currentUser
+    if (!user) return
+
+    try {
+      const userTradesRef = ref(rtdb, `signalTrades/${user.uid}`)
+      const snapshot = await get(userTradesRef)
+      if (!snapshot.exists()) return
+
+      const data = snapshot.val()
+      const openTrades = Object.keys(data)
+        .map((id) => ({ id, ...data[id] }))
+        .filter((trade) => trade.status === "OPEN")
+
+      if (openTrades.length === 0) return
+
+      // Get current prices for all open trades in parallel
+      const pricePromises = openTrades.map(async (trade) => {
+        try {
+          const ticker = await getTickerWithRetry(trade.symbol)
+          return {
+            tradeId: trade.id,
+            symbol: trade.symbol,
+            currentPrice: Number.parseFloat(ticker?.price || 0),
+            trade: trade
+          }
+        } catch (error) {
+          console.error(`Failed to get price for ${trade.symbol}:`, error)
+          return null
+        }
+      })
+
+      const priceResults = await Promise.all(pricePromises)
+      const updates = []
+
+      for (const result of priceResults) {
+        if (!result || !result.currentPrice) continue
+        
+        const { tradeId, currentPrice, trade } = result
+        const entry = Number.parseFloat(trade.entryPrice)
+        const target = Number.parseFloat(trade.targetPrice)
+        const stop = Number.parseFloat(trade.stopPrice)
+        const direction = trade.direction
+        
+        let shouldClose = false
+        let closeReason = ""
+        
+        // Check if target or stop hit
+        if (direction === "RISE") {
+          if (currentPrice >= target) {
+            shouldClose = true
+            closeReason = "TARGET_HIT"
+          } else if (currentPrice <= stop) {
+            shouldClose = true
+            closeReason = "STOP_HIT"
+          }
+        } else { // FALL
+          if (currentPrice <= target) {
+            shouldClose = true
+            closeReason = "TARGET_HIT"
+          } else if (currentPrice >= stop) {
+            shouldClose = true
+            closeReason = "STOP_HIT"
+          }
+        }
+        
+        // Also check if expired
+        const now = Date.now()
+        const isExpired = now >= Number.parseInt(trade.expiresAt || 0, 10)
+        
+        if ((shouldClose || isExpired) && !trade.closedAt) {
+          const closePayload = computeTradeClose(trade, currentPrice)
+          closePayload.closeReason = shouldClose ? closeReason : "TIME_EXPIRY"
+          updates.push(
+            update(ref(rtdb, `signalTrades/${user.uid}/${tradeId}`), closePayload)
+          )
+          
+          // Show alert for target/stop hits (with deduplication)
+          if (shouldClose) {
+            const pnl = closePayload.pnlPercent
+            const emoji = pnl >= 0 ? "🎯" : "🛑"
+            const alertKey = `${tradeId}-${closeReason}`
+            
+            if (!lastAlertHash[alertKey]) {
+              setLastAlertHash(prev => ({ ...prev, [alertKey]: true }))
+              Alert.alert(
+                `${emoji} Trade Closed - ${trade.symbol}`,
+                `${direction} ${closeReason === "TARGET_HIT" ? "TARGET" : "STOP"} hit!\nPnL: ${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}% (${formatUsdt(closePayload.profitAmount)})`
+              )
+            }
+          }
+        }
+      }
+      
+      if (updates.length > 0) {
+        await Promise.all(updates)
+        await loadTrades() // Refresh trades after updates
+      }
+    } catch (error) {
+      console.error("Trade monitoring failed:", error)
+    }
+  }
+
   const evaluateOpenTrades = async () => {
     const user = auth.currentUser
     if (!user) return
@@ -347,21 +466,53 @@ const OpportunityScannerScreen = () => {
       const data = snapshot.val()
       const openTrades = Object.keys(data)
         .map((id) => ({ id, ...data[id] }))
-        .filter((trade) => trade.status === "OPEN")
+        .filter((trade) => trade.status === "OPEN" && !trade.closedAt)
 
-      const now = Date.now()
       for (const trade of openTrades) {
-        if (now < Number.parseInt(trade.expiresAt || 0, 10)) continue
-
         try {
-          const ticker = await apiClient.getTicker(trade.symbol)
+          const ticker = await getTickerWithRetry(trade.symbol)
           const currentPrice = Number.parseFloat(ticker?.price || 0)
           if (!currentPrice) continue
 
-          const closePayload = computeTradeClose(trade, currentPrice)
-          await update(ref(rtdb, `signalTrades/${user.uid}/${trade.id}`), closePayload)
+          const now = Date.now()
+          const isExpired = now >= Number.parseInt(trade.expiresAt || 0, 10)
+          
+          // Check if target/stop hit or expired
+          const entry = Number.parseFloat(trade.entryPrice)
+          const target = Number.parseFloat(trade.targetPrice)
+          const stop = Number.parseFloat(trade.stopPrice)
+          const direction = trade.direction
+          
+          let shouldClose = isExpired
+          let closeReason = "TIME_EXPIRY"
+          
+          if (!shouldClose) {
+            if (direction === "RISE") {
+              if (currentPrice >= target) {
+                shouldClose = true
+                closeReason = "TARGET_HIT"
+              } else if (currentPrice <= stop) {
+                shouldClose = true
+                closeReason = "STOP_HIT"
+              }
+            } else {
+              if (currentPrice <= target) {
+                shouldClose = true
+                closeReason = "TARGET_HIT"
+              } else if (currentPrice >= stop) {
+                shouldClose = true
+                closeReason = "STOP_HIT"
+              }
+            }
+          }
+          
+          if (shouldClose) {
+            const closePayload = computeTradeClose(trade, currentPrice)
+            closePayload.closeReason = closeReason
+            await update(ref(rtdb, `signalTrades/${user.uid}/${trade.id}`), closePayload)
+          }
         } catch (error) {
-          console.error(`Failed closing trade ${trade.id}:`, error)
+          console.error(`Failed evaluating trade ${trade.id}:`, error)
         }
       }
     } finally {
@@ -406,6 +557,7 @@ const OpportunityScannerScreen = () => {
         pnlPercent: null,
         profitAmount: null,
         closedAt: null,
+        closeReason: null,
       }
 
       const newTradeRef = push(ref(rtdb, `signalTrades/${user.uid}`))
@@ -419,7 +571,7 @@ const OpportunityScannerScreen = () => {
       })
 
       await loadTrades()
-      Alert.alert("Trade Saved", `${signal.symbol} ${signal.direction} trade has been saved and will auto-evaluate on expiry.`)
+      Alert.alert("Trade Saved", `${signal.symbol} ${signal.direction} trade has been saved. Will auto-close on target/stop/expiry.`)
     } catch (error) {
       console.error("Failed to save trade:", error)
       Alert.alert("Save Failed", error?.message || "Could not save trade.")
@@ -557,7 +709,7 @@ const OpportunityScannerScreen = () => {
           </View>
 
           {!!currentPair && <Text style={styles.currentPair}>Analyzing: {currentPair}</Text>}
-          {isEvaluatingTrades && <Text style={styles.currentPair}>Evaluating expired trades...</Text>}
+          {isEvaluatingTrades && <Text style={styles.currentPair}>Evaluating trades...</Text>}
           {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
         </View>
 
@@ -607,7 +759,7 @@ const OpportunityScannerScreen = () => {
                   <Text style={styles.signalValue}>{formatPriceFull(item.entryPrice)}</Text>
                 </View>
                 <View style={styles.signalRow}>
-                  <Text style={styles.signalLabel}>Exit (Target)</Text>
+                  <Text style={styles.signalLabel}>Target</Text>
                   <Text style={[styles.signalValue, { color: up ? colors.success : colors.error }]}>{formatPriceFull(item.exitPrice)}</Text>
                 </View>
                 <View style={styles.signalRow}>
@@ -656,15 +808,21 @@ const OpportunityScannerScreen = () => {
                 <Text style={styles.signalLabel}>Target</Text>
                 <Text style={styles.signalValue}>{formatPriceFull(trade.targetPrice)}</Text>
               </View>
-              <View style={styles.signalRow}>
-                <Text style={styles.signalLabel}>Stop</Text>
-                <Text style={styles.signalValue}>{formatPriceFull(trade.stopPrice)}</Text>
-              </View>
+               <View style={styles.signalRow}>
+                 <Text style={styles.signalLabel}>Stop</Text>
+                 <Text style={styles.signalValue}>{formatPriceFull(trade.stopPrice)}</Text>
+               </View>
               {trade.status === "CLOSED" && (
                 <>
                   <View style={styles.signalRow}>
                     <Text style={styles.signalLabel}>Exit</Text>
                     <Text style={styles.signalValue}>{formatPriceFull(trade.exitPrice)}</Text>
+                  </View>
+                  <View style={styles.signalRow}>
+                    <Text style={styles.signalLabel}>Close Reason</Text>
+                    <Text style={[styles.signalValue, { color: trade.closeReason === "TARGET_HIT" ? colors.success : trade.closeReason === "STOP_HIT" ? colors.error : colors.textSecondary }]}>
+                      {trade.closeReason?.replace("_", " ")}
+                    </Text>
                   </View>
                   <View style={styles.signalRow}>
                     <Text style={styles.signalLabel}>PnL %</Text>

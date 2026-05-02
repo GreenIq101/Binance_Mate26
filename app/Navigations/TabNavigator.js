@@ -5,6 +5,7 @@ import MainScreen from "../Screens/MainScreen"
 import DataDisplayScreen from "../Screens/DataDisplayScreen"
 import OpportunityScannerScreen from "../Screens/OpportunityScannerScreen"
 import AccountScreen from "../Screens/AccountScreen"
+import PredictionScreen from "../Screens/PredictionScreen"
 import { colors, borderRadius, shadows, spacing } from "../Styling/ModernLight"
 
 const Tab = createBottomTabNavigator()
@@ -24,6 +25,8 @@ const TabNavigator = () => {
             iconName = "flash"
           } else if (route.name === "Data") {
             iconName = "database"
+          } else if (route.name === "Predictions") {
+            iconName = "eye"
           }
 
           return (
@@ -83,6 +86,16 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: "Signals",
           headerTitle: "Opportunities",
+        }}
+      />
+
+      {/* Prediction Screen */}
+      <Tab.Screen
+        name="Predictions"
+        component={PredictionScreen}
+        options={{
+          tabBarLabel: "Predictions",
+          headerTitle: "Market Predictions",
         }}
       />
 

@@ -1,6 +1,4 @@
-"use client"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect } from 'react'
 import {
   StyleSheet,
   Text,
@@ -11,28 +9,37 @@ import {
   Alert,
   StatusBar,
   Platform,
-} from "react-native"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { auth } from "../Firebase/fireConfig"
-import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from "firebase/auth"
-import { colors, spacing, borderRadius, shadows, typography } from "../Styling/ModernLight"
+  Animated,
+} from 'react-native'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { auth } from '../Firebase/fireConfig'
+import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth'
+import { colors, spacing, borderRadius, shadows, typography } from '../Styling/ModernLight'
 
 const LoginScreen = ({ navigation }) => {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [emailValid, setEmailValid] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [scaleAnim] = useState(new Animated.Value(0.95))
 
   useEffect(() => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     setEmailValid(emailRegex.test(email))
   }, [email])
 
+  useEffect(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start()
+  }, [scaleAnim])
+
   const handleLogin = async () => {
     if (!emailValid || !password) {
-      Alert.alert("Error", "Please enter valid email and password")
+      Alert.alert('Error', 'Please enter valid email and password')
       return
     }
 
@@ -41,24 +48,24 @@ const LoginScreen = ({ navigation }) => {
       const normalizedEmail = email.trim().toLowerCase()
       await signInWithEmailAndPassword(auth, normalizedEmail, password)
     } catch (error) {
-      console.error("Login error:", error)
-      let errorMessage = "Login failed. Please try again."
+      console.error('Login error:', error)
+      let errorMessage = 'Login failed. Please try again.'
 
-      if (error.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email."
-      } else if (error.code === "auth/wrong-password") {
-        errorMessage = "Incorrect password."
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Invalid email address."
-      } else if (error.code === "auth/invalid-credential") {
-        errorMessage = "Invalid email or password."
-      } else if (error.code === "auth/too-many-requests") {
-        errorMessage = "Too many attempts. Please wait a few minutes and try again."
-      } else if (error.code === "auth/network-request-failed") {
-        errorMessage = "Network error. Check your internet connection and try again."
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email.'
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password.'
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address.'
+      } else if (error.code === 'auth/invalid-credential') {
+        errorMessage = 'Invalid email or password.'
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many attempts. Please wait a few minutes and try again.'
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Check your internet connection and try again.'
       }
 
-      Alert.alert("Login Error", errorMessage)
+      Alert.alert('Login Error', errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -67,26 +74,26 @@ const LoginScreen = ({ navigation }) => {
   const handleGoogleAuth = async () => {
     setIsLoading(true)
     try {
-      if (Platform.OS !== "web") {
-        Alert.alert("Google Sign-In", "Google sign-in is currently enabled for web in this build.")
+      if (Platform.OS !== 'web') {
+        Alert.alert('Google Sign-In', 'Google sign-in is currently enabled for web in this build.')
         return
       }
 
       const provider = new GoogleAuthProvider()
       await signInWithPopup(auth, provider)
     } catch (error) {
-      console.error("Google auth error:", error)
-      let errorMessage = "Google sign-in failed. Please try again."
+      console.error('Google auth error:', error)
+      let errorMessage = 'Google sign-in failed. Please try again.'
 
-      if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Google sign-in was canceled."
-      } else if (error.code === "auth/popup-blocked") {
-        errorMessage = "Popup was blocked by the browser. Please allow popups and try again."
-      } else if (error.code === "auth/operation-not-allowed") {
-        errorMessage = "Google sign-in is not enabled in Firebase Authentication."
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Google sign-in was canceled.'
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Popup was blocked by the browser. Please allow popups and try again.'
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = 'Google sign-in is not enabled in Firebase Authentication.'
       }
 
-      Alert.alert("Google Sign-In Error", errorMessage)
+      Alert.alert('Google Sign-In Error', errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -94,26 +101,39 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.dark} />
       
       <ScrollView 
         contentContainerStyle={styles.scrollContainer} 
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <View style={styles.logoCircle}>
-            <MaterialCommunityIcons name="brain" size={40} color={colors.primary} />
-          </View>
+        {/* Header Section */}
+        <View style={styles.headerSection}>
+          <Animated.View 
+            style={[
+              styles.logoContainer,
+              {
+                transform: [{ scale: scaleAnim }],
+              },
+            ]}
+          >
+            <View style={styles.logoGradient}>
+              <MaterialCommunityIcons name="brain" size={48} color={colors.primary} />
+            </View>
+          </Animated.View>
+          
           <Text style={styles.appName}>Binance Mate</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
+          <Text style={styles.subtitle}>Welcome back to smart trading</Text>
         </View>
 
+        {/* Form Card */}
         <View style={styles.formCard}>
+          {/* Email Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputContainer}>
-              <MaterialCommunityIcons name="email-outline" size={20} color={colors.textTertiary} />
+            <Text style={styles.label}>Email Address</Text>
+            <View style={[styles.inputContainer, email && styles.inputContainerFocused]}>
+              <MaterialCommunityIcons name="email-outline" size={20} color={colors.primary} />
               <TextInput
                 style={styles.input}
                 placeholder="your@email.com"
@@ -125,21 +145,22 @@ const LoginScreen = ({ navigation }) => {
               />
               {email.length > 0 && (
                 <MaterialCommunityIcons
-                  name={emailValid ? "check-circle" : "alert-circle"}
+                  name={emailValid ? 'check-circle' : 'alert-circle'}
                   size={18}
-                  color={emailValid ? colors.success : colors.danger}
+                  color={emailValid ? colors.success : colors.error}
                 />
               )}
             </View>
           </View>
 
+          {/* Password Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <View style={styles.inputContainer}>
-              <MaterialCommunityIcons name="lock-outline" size={20} color={colors.textTertiary} />
+            <View style={[styles.inputContainer, password && styles.inputContainerFocused]}>
+              <MaterialCommunityIcons name="lock-outline" size={20} color={colors.primary} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter password"
+                placeholder="Enter your password"
                 placeholderTextColor={colors.textTertiary}
                 value={password}
                 onChangeText={setPassword}
@@ -147,64 +168,67 @@ const LoginScreen = ({ navigation }) => {
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <MaterialCommunityIcons 
-                  name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
                   size={20} 
-                  color={colors.textTertiary} 
+                  color={colors.primary}
                 />
               </TouchableOpacity>
             </View>
           </View>
 
+          {/* Options Row */}
           <View style={styles.optionsRow}>
             <TouchableOpacity 
               style={styles.rememberRow} 
               onPress={() => setRememberMe(!rememberMe)}
             >
               <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                {rememberMe && <MaterialCommunityIcons name="check" size={12} color="white" />}
+                {rememberMe && <MaterialCommunityIcons name="check" size={12} color={colors.textInverse} />}
               </View>
               <Text style={styles.rememberText}>Remember me</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => Alert.alert("Coming Soon", "Password reset is not implemented yet.")}>
-              <Text style={styles.forgotText}>Forgot?</Text>
+            <TouchableOpacity onPress={() => Alert.alert('Coming Soon', 'Password reset is not implemented yet.')}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
             </TouchableOpacity>
           </View>
 
+          {/* Sign In Button */}
           <TouchableOpacity
-            style={[styles.loginButton, (!emailValid || !password || isLoading) && styles.loginButtonDisabled]}
+            style={[styles.signInButton, (!emailValid || !password || isLoading) && styles.signInButtonDisabled]}
             onPress={handleLogin}
             disabled={!emailValid || !password || isLoading}
           >
-            <View style={styles.buttonContent}>
-              {isLoading ? (
-                <MaterialCommunityIcons name="loading" size={20} color="white" />
-              ) : (
-                <View style={styles.buttonContent}>
-                  <MaterialCommunityIcons name="login" size={20} color="white" />
-                  <Text style={styles.loginButtonText}>Sign In</Text>
-                </View>
-              )}
-            </View>
+            {isLoading ? (
+              <MaterialCommunityIcons name="loading" size={20} color={colors.dark} />
+            ) : (
+              <View style={styles.buttonContent}>
+                <MaterialCommunityIcons name="login" size={18} color={colors.dark} />
+                <Text style={styles.signInButtonText}>Sign In</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
+          {/* Divider */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
 
+          {/* Google Button */}
           <TouchableOpacity style={styles.googleButton} onPress={handleGoogleAuth} disabled={isLoading}>
             <View style={styles.buttonContent}>
-              <MaterialCommunityIcons name="google" size={20} color={colors.error} />
+              <MaterialCommunityIcons name="google" size={18} color={colors.error} />
               <Text style={styles.googleButtonText}>Continue With Google</Text>
             </View>
           </TouchableOpacity>
 
+          {/* Sign Up Link */}
           <View style={styles.signupRow}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
-              <Text style={styles.signupLink}>Sign Up</Text>
+            <Text style={styles.signupText}>Don&apos;t have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+              <Text style={styles.signupLink}>Create one</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -216,29 +240,35 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.dark,
   },
   scrollContainer: {
     flexGrow: 1,
     padding: spacing.lg,
-    justifyContent: "center",
+    paddingTop: spacing.xl,
+    justifyContent: 'center',
   },
-  header: {
-    alignItems: "center",
+  headerSection: {
+    alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  logoContainer: {
+    marginBottom: spacing.lg,
+  },
+  logoGradient: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: colors.surfaceVariant,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.lg,
   },
   appName: {
-    ...typography.h3,
-    color: colors.text,
+    ...typography.h2,
+    color: colors.primary,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.bodySmall,
@@ -253,49 +283,54 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   inputGroup: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   label: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
-    fontWeight: "500",
-    marginBottom: spacing.xs,
+    color: colors.textTertiary,
+    fontWeight: '500',
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surfaceVariant,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
+  },
+  inputContainerFocused: {
+    borderColor: colors.primary,
   },
   input: {
     flex: 1,
     ...typography.body,
-    color: colors.text,
+    color: colors.textInverse,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
   },
   optionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.lg,
   },
   rememberRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1.5,
+    width: 20,
+    height: 20,
+    borderRadius: borderRadius.sm,
+    borderWidth: 2,
     borderColor: colors.border,
     marginRight: spacing.sm,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   checkboxChecked: {
     backgroundColor: colors.primary,
@@ -308,60 +343,63 @@ const styles = StyleSheet.create({
   forgotText: {
     ...typography.bodySmall,
     color: colors.primary,
-    fontWeight: "500",
+    fontWeight: '600',
   },
-  loginButton: {
+  signInButton: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
-    overflow: "hidden",
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+    ...shadows.md,
   },
-  loginButtonDisabled: {
+  signInButtonDisabled: {
     backgroundColor: colors.textTertiary,
+    opacity: 0.5,
   },
   buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
   },
-  loginButtonText: {
+  signInButtonText: {
     ...typography.body,
-    color: "white",
-    fontWeight: "600",
+    color: colors.dark,
+    fontWeight: '700',
   },
   dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.divider,
+    backgroundColor: colors.border,
   },
   dividerText: {
     ...typography.caption,
     color: colors.textTertiary,
-    marginHorizontal: spacing.sm,
-    textTransform: "uppercase",
+    marginHorizontal: spacing.md,
+    textTransform: 'uppercase',
   },
   googleButton: {
-    marginTop: spacing.md,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surfaceVariant,
     borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: spacing.lg,
   },
   googleButtonText: {
     ...typography.body,
-    color: colors.text,
-    fontWeight: "600",
+    color: colors.textInverse,
+    fontWeight: '600',
   },
   signupRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: spacing.xl,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: spacing.md,
   },
   signupText: {
     ...typography.bodySmall,
@@ -370,7 +408,7 @@ const styles = StyleSheet.create({
   signupLink: {
     ...typography.bodySmall,
     color: colors.primary,
-    fontWeight: "600",
+    fontWeight: '700',
   },
 })
 

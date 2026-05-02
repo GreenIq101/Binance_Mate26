@@ -2,6 +2,7 @@ const axios = require("axios");
 const CryptoJS = require("crypto-js");
 
 const binanceBase = "https://api.binance.com";
+const binancePublicDataBase = "https://data-api.binance.vision";
 const API_KEY = process.env.BINANCE_API_KEY || "";
 const API_SECRET = process.env.BINANCE_API_SECRET || "";
 
@@ -66,10 +67,13 @@ export default async function handler(req, res) {
       url = `${binanceBase}/api/v3/${normalizedPath}?${queryStr}&signature=${signature}`;
       axiosHeaders["X-MBX-APIKEY"] = API_KEY;
     } else {
-      url = `${binanceBase}/api/v3/${normalizedPath}?${queryParams.toString()}`;
+      url = `${binancePublicDataBase}/api/v3/${normalizedPath}?${queryParams.toString()}`;
     }
 
-    const response = await axios.get(url, { headers: axiosHeaders });
+    const response = await axios.get(url, {
+      headers: axiosHeaders,
+      timeout: 15000,
+    });
     return res.status(200).json(response.data);
   } catch (error) {
     const status = error?.response?.status || 500;

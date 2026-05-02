@@ -35,6 +35,13 @@ const normalizeError = (error) => {
   throw error
 }
 
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    normalizeError(error)
+  },
+)
+
 // API Endpoints
 export const getAccount = async () => {
   try {

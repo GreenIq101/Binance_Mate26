@@ -2,6 +2,11 @@
   "version": 2,
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/binance.js": {
+      "regions": ["sin1"]
+    }
+  },
   "rewrites": [
     {
       "source": "/api/:path*",

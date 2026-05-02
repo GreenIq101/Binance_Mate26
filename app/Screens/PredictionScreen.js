@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import axios from 'axios';
+import apiClient from '../l/apiClient';
 
 const PredictionScreen = () => {
   const [spikePairs, setSpikePairs] = useState([]);
@@ -15,8 +15,8 @@ const PredictionScreen = () => {
 
   const scanMarket = async () => {
     try {
-      const exchangeInfo = await axios.get('https://api.binance.com/api/v3/exchangeInfo');
-      const usdtPairs = exchangeInfo.data.symbols
+      const exchangeInfo = await apiClient.getExchangeInfo();
+      const usdtPairs = exchangeInfo.symbols
         .filter(symbol => symbol.quoteAsset === 'USDT')
         .map(symbol => symbol.symbol);
 
@@ -26,11 +26,9 @@ const PredictionScreen = () => {
         const symbol = usdtPairs[i];
         setCurrentScanning(symbol);
 
-        const response = await axios.get(
-          `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&limit=51` // Fetch last 51 hours of data
-        );
+        const response = await apiClient.getKlines(symbol, '1h', 51);
 
-        const formattedData = response.data.map(item => ({
+        const formattedData = response.map(item => ({
           time: new Date(item[0]).toLocaleTimeString(),
           close: parseFloat(item[4]),
           volume: parseFloat(item[5]),

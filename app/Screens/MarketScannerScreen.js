@@ -17,7 +17,7 @@ import { useState, useEffect, useRef } from "react"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { BlurView } from "../Commponents/BlurViewCompat"
-import axios from "axios"
+import apiClient from "../l/apiClient"
 import moment from "moment"
 import { collection, addDoc, getDocs, query, orderBy, limit, where } from "firebase/firestore"
 import { db } from "../Firebase/fireConfig"
@@ -121,8 +121,8 @@ const MarketScannerScreen = ({ navigation }) => {
 
   const fetchAllUSDTPairs = async () => {
     try {
-      const response = await axios.get("https://api.binance.com/api/v3/exchangeInfo")
-      const usdtPairs = response.data.symbols
+      const response = await apiClient.getExchangeInfo()
+      const usdtPairs = response.symbols
         .filter((symbol) => symbol.quoteAsset === "USDT" && symbol.status === "TRADING")
         .map((symbol) => symbol.symbol)
         .sort()
@@ -137,11 +137,9 @@ const MarketScannerScreen = ({ navigation }) => {
 
   const fetchHistoricalData = async (pair, interval = "5m", limit = 50) => {
     try {
-      const response = await axios.get(
-        `https://api.binance.com/api/v3/klines?symbol=${pair}&interval=${interval}&limit=${limit}`,
-      )
+      const response = await apiClient.getKlines(pair, interval, limit)
 
-      return response.data.map((candle) => ({
+      return response.map((candle) => ({
         timestamp: candle[0],
         open: Number.parseFloat(candle[1]),
         high: Number.parseFloat(candle[2]),

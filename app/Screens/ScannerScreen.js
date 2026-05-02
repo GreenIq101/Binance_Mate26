@@ -15,7 +15,7 @@ import { useState, useEffect, useRef } from "react"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { BlurView } from "../Commponents/BlurViewCompat"
-import axios from "axios"
+import apiClient from "../l/apiClient"
 import moment from "moment"
 import { collection, addDoc, getDocs, query, orderBy, limit } from "firebase/firestore"
 import { db } from "../Firebase/fireConfig"
@@ -82,10 +82,9 @@ const calculateATR = (data, period) => {
 const fetchHistoricalData = async (pair) => {
   const interval = "5m"
   const limit = 30
-  const url = `https://api.binance.com/api/v3/klines?symbol=${pair.toUpperCase()}&interval=${interval}&limit=${limit}`
   try {
-    const res = await axios.get(url)
-    return res.data.map((candle) => ({
+    const res = await apiClient.getKlines(pair.toUpperCase(), interval, limit)
+    return res.map((candle) => ({
       open: Number.parseFloat(candle[1]),
       high: Number.parseFloat(candle[2]),
       low: Number.parseFloat(candle[3]),

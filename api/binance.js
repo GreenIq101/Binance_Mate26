@@ -18,13 +18,15 @@ const endpoints = {
 
 export default async function handler(req, res) {
   const { path = "", ...query } = req.query;
+  const rawPath = Array.isArray(path) ? path.join("/") : path;
+  const normalizedPath = rawPath.replace(/^\/?api\/v3\//, "").replace(/^\/?v3\//, "");
   
-  if (!path) {
+  if (!normalizedPath) {
     return res.status(400).json({ error: "Missing path parameter" });
   }
 
   try {
-    const needsSigning = endpoints.account.includes(path);
+    const needsSigning = endpoints.account.includes(normalizedPath);
     
     if (needsSigning && !hasCredentials()) {
       return res.status(500).json({ error: "Missing BINANCE_API_KEY or BINANCE_API_SECRET" });
@@ -42,10 +44,10 @@ export default async function handler(req, res) {
       const timestamp = Date.now();
       const queryStr = queryParams.toString() + `&timestamp=${timestamp}`;
       const signature = createSignature(queryStr);
-      url = `${binanceBase}/api/v3/${path}?${queryStr}&signature=${signature}`;
+      url = `${binanceBase}/api/v3/${normalizedPath}?${queryStr}&signature=${signature}`;
       axiosHeaders["X-MBX-APIKEY"] = API_KEY;
     } else {
-      url = `${binanceBase}/api/v3/${path}?${queryParams.toString()}`;
+      url = `${binanceBase}/api/v3/${normalizedPath}?${queryParams.toString()}`;
     }
 
     const response = await axios.get(url, { headers: axiosHeaders });

@@ -3,9 +3,12 @@
 
 import axios from 'axios';
 const isWeb = typeof window !== 'undefined';
-const isLocalWeb =
-  isWeb && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const BASE_URL = isLocalWeb || !isWeb ? 'http://localhost:4000' : '';
+const isDevWeb = isWeb && process.env.NODE_ENV === 'development';
+const BASE_URL = isDevWeb
+  ? `${window.location.protocol}//${window.location.hostname}:4000`
+  : !isWeb
+    ? 'http://localhost:4000'
+    : '';
 
 // Axios Client
 const client = axios.create({

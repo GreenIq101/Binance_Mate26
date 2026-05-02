@@ -8,7 +8,7 @@
       "destination": "/api/binance?path=:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]

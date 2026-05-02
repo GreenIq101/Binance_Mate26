@@ -1,9 +1,22 @@
 {
   "version": 2,
-  "outputDirectory": "dist",
-  "buildCommand": "echo 'Static export - no build needed'",
-  "devCommand": "echo 'Static export'",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "web-build"
+      }
+    }
+  ],
   "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/binance.js"
+    },
     {
       "src": "/(.*)",
       "dest": "/index.html"

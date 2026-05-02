@@ -1,8 +1,9 @@
 // Binance API Client
-// Browser-safe client (routes private calls through local proxy)
+// Routes through Vercel API in production, local proxy in development
 
 import axios from 'axios';
-const BASE_URL = process.env.EXPO_PUBLIC_BINANCE_PROXY_URL || 'http://localhost:4000';
+const isWeb = typeof window !== 'undefined';
+const BASE_URL = isWeb ? '' : 'http://localhost:4000';
 
 // Axios Client
 const client = axios.create({
@@ -10,12 +11,12 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-const normalizeProxyError = (error) => {
+const normalizeError = (error) => {
   if (error?.code === "ERR_NETWORK" || error?.code === "ECONNREFUSED") {
     const e = new Error(
-      "Cannot connect to Binance proxy. Start it with: npm run proxy"
+      "Cannot connect to API"
     )
-    e.code = "PROXY_UNREACHABLE"
+    e.code = "API_UNREACHABLE"
     throw e
   }
   throw error
@@ -27,7 +28,7 @@ export const getAccount = async () => {
     const res = await client.get('/api/v3/account');
     return res.data;
   } catch (error) {
-    normalizeProxyError(error)
+    normalizeError(error)
   }
 };
 
@@ -41,7 +42,7 @@ export const getOpenOrders = async (symbol = 'BTCUSDT') => {
     const res = await client.get('/api/v3/openOrders', { params: { symbol } });
     return res.data;
   } catch (error) {
-    normalizeProxyError(error)
+    normalizeError(error)
   }
 };
 
